@@ -7,11 +7,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.sql.SQLOutput;
 import java.util.*;
 
 public class CreateFeatureVectors2 {
 
   private static final int[] DATE_FIELDS = {10, 24, 38, 66};
+
+  private static final int[] LOCATION_FIELDS = {16, 18, 20, 30, 32, 34, 44, 46, 48, 72, 74, 76};
   private static final String OUTPUT_PATH = "data/javaVector";
   private static final String VECTOR_FILE = "data/javaVector";
   private static final String LIBSVM_TRAIN_FILE = "data/javaVector_train.libsvm";
@@ -24,7 +27,9 @@ public class CreateFeatureVectors2 {
   }
 
   public void run() throws IOException {
+    int foundCount = 0;
     List<Integer> dateFields = Utils.intArrayToList(DATE_FIELDS);
+    List<Integer> locationFields = Utils.intArrayToList(LOCATION_FIELDS);
     List<String> lines = Utils.readLines("data/pairs.csv");
     Files.deleteIfExists(Paths.get(OUTPUT_PATH));
     for (String line : lines) {
@@ -38,11 +43,44 @@ public class CreateFeatureVectors2 {
         String targetField = fields.get(i);
         String candidateField = fields.get(i + 1);
         if (targetField.isEmpty() || candidateField.isEmpty()) {
-          vectorValues.add("0");
+          if (i == 10 && !targetField.isEmpty()) {
+            candidateField = fields.get(39);
+            if (!candidateField.isEmpty()) {
+              int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
+              vectorValues.add(String.valueOf(15 < dateDifference && dateDifference < 50 ? 1 : 0));
+              foundCount++;
+            } else {
+              candidateField = fields.get(25);
+              if (!candidateField.isEmpty()) {
+                int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
+                vectorValues.add(String.valueOf(dateDifference < 20 ? 1 : 0));
+                foundCount++;
+              }
+            }
+          } else if (i == 10 && !candidateField.isEmpty()) {
+            targetField = fields.get(38);
+            if (!targetField.isEmpty()) {
+              int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
+              vectorValues.add(String.valueOf(15 < dateDifference && dateDifference < 50 ? 1 : 0));
+              foundCount++;
+            } else {
+              targetField = fields.get(24);
+              if (!targetField.isEmpty()) {
+                int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
+                vectorValues.add(String.valueOf(dateDifference < 20 ? 1 : 0));
+                foundCount++;
+              }
+            }
+          }
+          else {
+            vectorValues.add("0");
+          }
         }
         else if (i < 9) {
           int sameNames = 0;
           int differentNames = 0;
+//          int sameChar = 0;
+//          int differentChar = 0;
           List<String> targetNames = Arrays.asList(targetField.split(" "));
           List<String> candidateNames = Arrays.asList(candidateField.split(" "));
           for (String targetName : targetNames) {
@@ -50,22 +88,43 @@ public class CreateFeatureVectors2 {
               if (targetName.equals(candidateName)) {
                 sameNames++;
               }
-//              else {
-//                differentNames--;
+              else {
+                differentNames--;
+              }
+
+              // Character by Character comparison
+//              for (char targetChar : targetName.toLowerCase().toCharArray()) {
+//                for (char candidateChar : candidateName.toLowerCase().toCharArray()) {
+//                  if (targetChar == candidateChar) {
+//                    sameChar++;
+//                  } else {
+//                    differentChar--;
+//                  }
+//                }
 //              }
             }
           }
           vectorValues.add(String.valueOf(sameNames > 0 ? sameNames : differentNames));
+          //vectorValues.add(String.valueOf(sameChar > 0 ? sameChar : differentChar));
         }
-//        else if (dateFields.contains(i)) {
-//          try {
-//            int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
-//            vectorValues.add(String.valueOf(dateDifference < 5 ? 5 - dateDifference : 0));
-//          }
-//          catch (NumberFormatException e) {
-//            vectorValues.add("0");
-//          }
-//        }
+        else if (dateFields.contains(i)) {
+          try {
+            int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
+            vectorValues.add(String.valueOf(dateDifference < 5 ? 5 - dateDifference : 0));
+          }
+          catch (NumberFormatException e) {
+            vectorValues.add("0");
+          }
+        }
+        else if (locationFields.contains(i)) {
+          try {
+            int dateDifference = Math.abs(Integer.parseInt(targetField) - Integer.parseInt(candidateField));
+            vectorValues.add(String.valueOf(dateDifference == 0 ? 1 : -1));
+          }
+          catch (NumberFormatException e) {
+            vectorValues.add("0");
+          }
+        }
         else {
           // Basic logic - check if the values are an exact match
           if (targetField.equals(candidateField)) {
@@ -74,7 +133,6 @@ public class CreateFeatureVectors2 {
           else {
             vectorValues.add("0");
           }
-
         }
       }
       Path path = Paths.get(OUTPUT_PATH);
@@ -89,6 +147,7 @@ public class CreateFeatureVectors2 {
         e.printStackTrace();
       }
     }
+    System.out.println(foundCount);
     createLibSvmFile();
   }
 

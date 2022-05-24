@@ -19,12 +19,12 @@ with mlflow.start_run():
   test = xgb.DMatrix('data/javaVector_eval.libsvm', feature_names=feature_names)
 
   eval_metrics = ['error', 'logloss']
-  num_boost_rounds = 1000
+  num_boost_rounds = 10000
   mlflow.log_param("boost_rounds", num_boost_rounds)
 
   params = {'n_jobs': 4,
-            'eta': 0.1,
-            'max_depth': 4,
+            'eta': 0.001,
+            'max_depth': 8,
             'gamma': 0,
             'subsample': 1,
             'colsample_bytree': 1,
@@ -34,8 +34,8 @@ with mlflow.start_run():
 
   results = {}
   watchlist = [(train, 'train'), (test, 'test')]
-  clf = xgb.train(params, train, num_boost_rounds, watchlist, evals_result = results, verbose_eval=100)
-  # clf = xgb.train(params, train, num_boost_rounds, watchlist, early_stopping_rounds=50, evals_result = results, verbose_eval=100)
+  # clf = xgb.train(params, train, num_boost_rounds, watchlist, evals_result = results, verbose_eval=100)
+  clf = xgb.train(params, train, num_boost_rounds, watchlist, early_stopping_rounds=50, evals_result = results, verbose_eval=100)
 
   #####################################
   # Evaluate predictions
@@ -74,7 +74,7 @@ with mlflow.start_run():
     plt.ylabel('Classification ' + metric_name)
     plt.title('XGBoost Classification ' + metric_name)
     plt.savefig("artifacts/" + metric_name + ".png")
-    plt.show()
+    #plt.show()
 
   ##################################
   # Plot decision tree, feature importance stack and precision-recall curve
@@ -85,18 +85,18 @@ with mlflow.start_run():
   plt.ylabel('Precision')
   plt.title('Precision-Recall curve')
   plt.savefig("artifacts/PR_curve.png")
-  plt.show()
+  #plt.show()
 
   plt.rcParams["figure.figsize"] = (14,7)
   xgb.plot_importance(clf, grid=False)
   plt.savefig("artifacts/importance.png")
-  plt.show()
+  #plt.show()
 
   plt.rcParams["figure.figsize"] = (14,3)
   xgb.plot_tree(clf, num_trees=0)
   plt.title('Decision Tree')
   plt.savefig("artifacts/tree.png", dpi = 600)
-  plt.show()
+  #plt.show()
 
   # persist the model and save artficats to mlflow
   clf.save_model('artifacts/xgb.model')
